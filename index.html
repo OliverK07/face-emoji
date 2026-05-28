@@ -43,11 +43,17 @@
             font-family: 'Outfit', 'Noto Sans TC', sans-serif;
         }
         #canvas-container { 
-            position: relative; 
-            display: inline-block; 
+            position: relative;
+            display: block;
             border-radius: 12px;
             overflow: hidden;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            line-height: 0; /* remove any inline gap below canvas */
+        }
+        #mainCanvas {
+            display: block;
+            width: 100%;  /* CSS display width = 100% of container */
+            height: auto; /* maintain aspect ratio visually */
         }
         .face-selector {
             position: absolute;
@@ -287,8 +293,8 @@
             <div class="lg:col-span-8 bg-slate-900/40 backdrop-blur-xl border border-slate-800 rounded-3xl p-4 md:p-6 shadow-xl flex flex-col items-center justify-center min-h-[550px] relative overflow-auto custom-scrollbar">
                 <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(99,102,241,0.05),transparent_70%)] pointer-events-none"></div>
                 
-                <div id="canvas-container" class="hidden relative max-w-full">
-                    <canvas id="mainCanvas" class="max-w-full block"></canvas>
+                <div id="canvas-container" class="hidden w-full">
+                    <canvas id="mainCanvas"></canvas>
                     <div id="checkbox-layer" class="absolute inset-0 pointer-events-auto"></div>
                 </div>
                 
@@ -688,13 +694,16 @@
                 await img.decode();
                 originalImage = img;
 
-                // Scale canvas size for efficient and clear rendering (max width 1000px)
-                const displayScale = Math.min(1, 1000 / img.width);
-                mainCanvas.width = img.width * displayScale;
-                mainCanvas.height = img.height * displayScale;
-                ctx.drawImage(img, 0, 0, mainCanvas.width, mainCanvas.height);
-
+                // IMPORTANT: Show container first so clientWidth returns real value (not 0)
                 canvasContainer.classList.remove('hidden');
+
+                // Set canvas physical size = container display width so CSS never rescales it
+                // This ensures face detection coords (%) always align 1:1 with display pixels
+                const containerWidth = canvasContainer.clientWidth || Math.min(img.width, 1000);
+                const scale = containerWidth / img.width;
+                mainCanvas.width = containerWidth;
+                mainCanvas.height = Math.round(img.height * scale);
+                ctx.drawImage(img, 0, 0, mainCanvas.width, mainCanvas.height);
 
                 // Perform Face Detection
                 detectedFaces = await detectFaces(mainCanvas);
