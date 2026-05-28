@@ -80,6 +80,24 @@
             accent-color: #8b5cf6;
             filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
         }
+        /* Mobile sticky bottom action bar */
+        #mobile-action-bar { display: none; }
+        @media (max-width: 1023px) {
+            #mobile-action-bar {
+                display: flex;
+                position: fixed;
+                bottom: 0; left: 0; right: 0;
+                z-index: 50;
+                background: rgba(11, 15, 25, 0.95);
+                backdrop-filter: blur(16px);
+                -webkit-backdrop-filter: blur(16px);
+                border-top: 1px solid rgba(139, 92, 246, 0.25);
+                padding: 10px 14px max(10px, env(safe-area-inset-bottom));
+                gap: 8px;
+                align-items: center;
+            }
+            body { padding-bottom: 76px; }
+        }
         .loading-overlay {
             display: none;
             position: fixed;
@@ -110,7 +128,7 @@
         }
     </style>
 </head>
-<body class="bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 min-h-screen text-slate-100 p-4 md:p-8 selection:bg-violet-500/30 selection:text-violet-200">
+<body class="bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 min-h-screen text-slate-100 p-3 md:p-8 selection:bg-violet-500/30 selection:text-violet-200">
 
     <!-- Loading Overlay -->
     <div id="loader" class="loading-overlay">
@@ -119,26 +137,34 @@
             <span class="absolute text-xl">🎭</span>
         </div>
         <p id="loader-text" class="text-lg font-medium text-slate-200 tracking-wider">正在加載 AI 偵測模型...</p>
-        <p id="loader-subtext" class="text-sm text-slate-400 mt-2 max-w-xs text-center px-4">這只需要幾秒鐘，模型僅為 196KB 輕量設計</p>
+        <p id="loader-subtext" class="text-sm text-slate-400 mt-2 max-w-xs text-center px-4">載入中，請稍候...</p>
+    </div>
+
+    <!-- Mobile Sticky Bottom Action Bar -->
+    <div id="mobile-action-bar">
+        <button id="mobileProcessBtn" class="flex-1 bg-gradient-to-r from-violet-600 to-indigo-600 text-white py-3 rounded-xl font-bold text-sm disabled:from-slate-800 disabled:to-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed" disabled>✨ 生成遮蔽</button>
+        <div id="mobile-post-actions" class="hidden contents">
+            <button id="mobileDownloadBtn" class="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 text-white py-3 rounded-xl font-bold text-sm">📥 下載</button>
+            <button id="mobileReSelectBtn" class="flex-1 bg-slate-800 border border-slate-700 text-slate-200 py-3 rounded-xl font-semibold text-sm">↩ 重選</button>
+        </div>
     </div>
 
     <div class="max-w-6xl mx-auto">
         <!-- Header -->
-        <header class="text-center mb-8 relative">
-            <div class="absolute -top-12 left-1/2 -translate-x-1/2 w-48 h-48 bg-violet-600/10 rounded-full blur-3xl -z-10"></div>
-            <h1 class="text-4xl md:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-violet-400 via-fuchsia-400 to-indigo-400 bg-clip-text text-transparent flex items-center justify-center gap-3">
+        <header class="text-center mb-4 md:mb-8 relative">
+            <h1 class="text-3xl md:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-violet-400 via-fuchsia-400 to-indigo-400 bg-clip-text text-transparent flex items-center justify-center gap-2">
                 🎭 FaceEmoji
             </h1>
-            <p class="text-slate-400 mt-3 text-sm md:text-base max-w-xl mx-auto font-light leading-relaxed">
-                自動安全偵測人臉 &rarr; 精準 Emoji 遮蔽。
-                <span class="block text-violet-400/90 font-medium mt-1">🔒 100% 離線本地處理・照片不外流伺服器</span>
+            <p class="text-slate-400 mt-1 md:mt-3 text-xs md:text-base max-w-xl mx-auto font-light leading-relaxed">
+                自動偵測人臉 → Emoji 遮蔽
+                <span class="hidden md:block text-violet-400/90 font-medium mt-1">🔒 100% 離線本地處理・照片不外流伺服器</span>
             </p>
         </header>
 
-        <!-- Main Layout -->
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        <!-- Main Layout: flex-col-reverse puts canvas ABOVE sidebar on mobile -->
+        <div class="flex flex-col-reverse lg:grid lg:grid-cols-12 gap-4 md:gap-8 items-start">
             <!-- Sidebar Panel: 4 cols -->
-            <div class="lg:col-span-4 space-y-6">
+            <div class="lg:col-span-4 space-y-4">
                 <!-- Status Dashboard Card -->
                 <div class="bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-2xl p-5 shadow-xl">
                     <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-2">
@@ -205,8 +231,12 @@
                         </div>
                     </div>
 
-                    <!-- Step 3: Advanced Detection Settings -->
+                    <!-- Step 3: Advanced Detection Settings (collapsible on mobile) -->
                     <div class="space-y-3 pt-3 border-t border-slate-800">
+                        <button class="lg:hidden w-full flex items-center justify-between text-xs py-1" onclick="this.nextElementSibling.classList.toggle('hidden');this.querySelector('.arrow').textContent=this.nextElementSibling.classList.contains('hidden')?'▸':'▾'">
+                            <span class="text-slate-400 font-medium flex items-center gap-1"><span class="text-violet-400">3</span> 偵測引擎配置</span><span class="arrow text-slate-500">▸</span>
+                        </button>
+                        <div class="hidden lg:block">
                         <label class="block text-sm font-semibold text-slate-200 flex items-center justify-between">
                             <span class="flex items-center gap-2">
                                 <span class="flex items-center justify-center w-5 h-5 rounded-full bg-violet-500/20 text-violet-400 text-xs font-bold">3</span>
@@ -269,10 +299,11 @@
                                 </div>
                             </div>
                         </div>
+                        </div><!-- end collapsible -->
                     </div>
 
-                    <!-- Process Area -->
-                    <div class="pt-4 border-t border-slate-800 space-y-3">
+                    <!-- Process Area (desktop only — mobile uses sticky bar) -->
+                    <div class="hidden lg:block pt-4 border-t border-slate-800 space-y-3">
                         <div class="flex items-start gap-2 bg-violet-950/30 border border-violet-900/30 rounded-xl p-3 text-xs text-slate-400">
                             <span class="text-violet-400 text-sm mt-0.5">💡</span>
                             <p class="leading-relaxed">提示：上傳後畫面上會以 <strong class="text-violet-300">紫色外框</strong> 標出偵測到的人臉。預設為全部遮蔽，您可以點擊個別外框來取消或恢復遮蔽。</p>
@@ -284,9 +315,9 @@
 
                         <!-- Download + Re-select row (shown after masking) -->
                         <div id="post-mask-actions" class="hidden space-y-2">
-                            <a id="downloadBtn" class="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white py-3 px-4 rounded-xl font-bold hover:from-emerald-500 hover:to-teal-500 active:scale-[0.99] transition-all duration-300 shadow-lg shadow-emerald-950/30">
+                            <button id="downloadBtn" class="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white py-3 px-4 rounded-xl font-bold hover:from-emerald-500 hover:to-teal-500 active:scale-[0.99] transition-all duration-300 shadow-lg shadow-emerald-950/30">
                                 📥 下載結果圖片
-                            </a>
+                            </button>
                             <button id="reSelectBtn" class="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-violet-500/50 text-slate-200 py-2.5 px-4 rounded-xl font-semibold transition-all duration-300 text-sm">
                                 ↩ 重新選擇要遮蔽的臉
                             </button>
@@ -295,8 +326,8 @@
                 </div>
             </div>
 
-            <!-- Workspace Panel: 8 cols -->
-            <div class="lg:col-span-8 bg-slate-900/40 backdrop-blur-xl border border-slate-800 rounded-3xl p-4 md:p-6 shadow-xl flex flex-col items-center justify-center min-h-[550px] relative overflow-auto custom-scrollbar">
+            <!-- Workspace Panel: 8 cols (first on mobile via flex-col-reverse) -->
+            <div class="lg:col-span-8 bg-slate-900/40 backdrop-blur-xl border border-slate-800 rounded-2xl p-3 md:p-6 shadow-xl flex flex-col items-center justify-center lg:min-h-[550px] relative overflow-hidden">
                 <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(99,102,241,0.05),transparent_70%)] pointer-events-none"></div>
                 
                 <div id="canvas-container" class="hidden w-full">
@@ -334,6 +365,11 @@
         const downloadBtn = document.getElementById('downloadBtn');
         const reSelectBtn = document.getElementById('reSelectBtn');
         const postMaskActions = document.getElementById('post-mask-actions');
+        // Mobile sticky bar counterparts
+        const mobileProcessBtn = document.getElementById('mobileProcessBtn');
+        const mobileDownloadBtn = document.getElementById('mobileDownloadBtn');
+        const mobileReSelectBtn = document.getElementById('mobileReSelectBtn');
+        const mobilePostActions = document.getElementById('mobile-post-actions');
         const checkboxLayer = document.getElementById('checkbox-layer');
         const loader = document.getElementById('loader');
         const loaderText = document.getElementById('loader-text');
@@ -761,6 +797,7 @@
                 });
 
                 processBtn.disabled = false;
+                mobileProcessBtn.disabled = false;
             } catch (err) {
                 console.error("Error processing image: ", err);
                 alert("圖片處理發生錯誤，請更換其他圖片再試！");
@@ -844,13 +881,29 @@
             // Wipe out interactive boxes on complete
             checkboxLayer.innerHTML = '';
 
-            // Show download + re-select actions
+            // Show download + re-select actions (desktop + mobile)
             postMaskActions.classList.remove('hidden');
-            downloadBtn.href = mainCanvas.toDataURL('image/png', 1.0);
-            downloadBtn.download = `face-emoji-masked-${Date.now()}.png`;
+            mobilePostActions.classList.remove('hidden');
+            mobileProcessBtn.classList.add('hidden');
 
-            // Scroll down on mobile to view result
-            postMaskActions.scrollIntoView({ behavior: 'smooth' });
+            // Shared download function
+            const doDownload = () => {
+                mainCanvas.toBlob((blob) => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `face-emoji-masked-${Date.now()}.png`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    setTimeout(() => URL.revokeObjectURL(url), 5000);
+                }, 'image/png', 1.0);
+            };
+            downloadBtn.onclick = doDownload;
+            mobileDownloadBtn.onclick = doDownload;
+
+            // Scroll canvas into view on mobile
+            mainCanvas.scrollIntoView({ behavior: 'smooth', block: 'start' });
         };
 
         // 7. Re-select faces — restore original image and re-render checkboxes
@@ -860,8 +913,10 @@
             // Restore the clean original image
             ctx.drawImage(originalImage, 0, 0, mainCanvas.width, mainCanvas.height);
 
-            // Hide post-mask actions, keep processBtn enabled
+            // Hide post-mask actions, restore process button
             postMaskActions.classList.add('hidden');
+            mobilePostActions.classList.add('hidden');
+            mobileProcessBtn.classList.remove('hidden');
 
             // Re-render all face selection boxes
             checkboxLayer.innerHTML = '';
@@ -901,6 +956,10 @@
             // Scroll back up to canvas on mobile
             mainCanvas.scrollIntoView({ behavior: 'smooth' });
         };
+
+        // Mobile sticky bar: mirror desktop buttons
+        mobileProcessBtn.onclick = () => processBtn.click();
+        mobileReSelectBtn.onclick = () => reSelectBtn.click();
     </script>
 </body>
 </html>
