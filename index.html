@@ -623,10 +623,17 @@
                     const { x, y, width, height } = face.box;
                     const selector = document.createElement('div');
                     selector.className = 'face-selector';
-                    selector.style.left = `${x}px`;
-                    selector.style.top = `${y}px`;
-                    selector.style.width = `${width}px`;
-                    selector.style.height = `${height}px`;
+                    
+                    // Convert internal canvas coordinates to responsive percentages to ensure 100% immune to CSS scaling / layout offsets
+                    const pctLeft = (x / mainCanvas.width) * 100;
+                    const pctTop = (y / mainCanvas.height) * 100;
+                    const pctWidth = (width / mainCanvas.width) * 100;
+                    const pctHeight = (height / mainCanvas.height) * 100;
+
+                    selector.style.left = `${pctLeft}%`;
+                    selector.style.top = `${pctTop}%`;
+                    selector.style.width = `${pctWidth}%`;
+                    selector.style.height = `${pctHeight}%`;
 
                     const cb = document.createElement('input');
                     cb.type = 'checkbox';
@@ -703,10 +710,17 @@
                     const { x, y, width, height } = face.box;
                     const selector = document.createElement('div');
                     selector.className = 'face-selector';
-                    selector.style.left = `${x}px`;
-                    selector.style.top = `${y}px`;
-                    selector.style.width = `${width}px`;
-                    selector.style.height = `${height}px`;
+                    
+                    // Convert internal canvas coordinates to responsive percentages to ensure 100% immune to CSS scaling / layout offsets
+                    const pctLeft = (x / mainCanvas.width) * 100;
+                    const pctTop = (y / mainCanvas.height) * 100;
+                    const pctWidth = (width / mainCanvas.width) * 100;
+                    const pctHeight = (height / mainCanvas.height) * 100;
+
+                    selector.style.left = `${pctLeft}%`;
+                    selector.style.top = `${pctTop}%`;
+                    selector.style.width = `${pctWidth}%`;
+                    selector.style.height = `${pctHeight}%`;
 
                     const cb = document.createElement('input');
                     cb.type = 'checkbox';
