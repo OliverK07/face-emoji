@@ -281,10 +281,16 @@
                         <button id="processBtn" class="w-full bg-gradient-to-r from-violet-600 to-indigo-600 text-white py-3 px-4 rounded-xl font-bold hover:from-violet-500 hover:to-indigo-500 active:scale-[0.99] transition-all duration-300 shadow-lg shadow-violet-900/20 disabled:from-slate-800 disabled:to-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed" disabled>
                             生成遮蔽圖片
                         </button>
-                        
-                        <a id="downloadBtn" class="hidden w-full block text-center bg-gradient-to-r from-emerald-600 to-teal-600 text-white py-3 px-4 rounded-xl font-bold hover:from-emerald-500 hover:to-teal-500 active:scale-[0.99] transition-all duration-300 shadow-lg shadow-emerald-950/30">
-                            📥 下載結果圖片
-                        </a>
+
+                        <!-- Download + Re-select row (shown after masking) -->
+                        <div id="post-mask-actions" class="hidden space-y-2">
+                            <a id="downloadBtn" class="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white py-3 px-4 rounded-xl font-bold hover:from-emerald-500 hover:to-teal-500 active:scale-[0.99] transition-all duration-300 shadow-lg shadow-emerald-950/30">
+                                📥 下載結果圖片
+                            </a>
+                            <button id="reSelectBtn" class="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-violet-500/50 text-slate-200 py-2.5 px-4 rounded-xl font-semibold transition-all duration-300 text-sm">
+                                ↩ 重新選擇要遮蔽的臉
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -326,6 +332,8 @@
         const ctx = mainCanvas.getContext('2d');
         const processBtn = document.getElementById('processBtn');
         const downloadBtn = document.getElementById('downloadBtn');
+        const reSelectBtn = document.getElementById('reSelectBtn');
+        const postMaskActions = document.getElementById('post-mask-actions');
         const checkboxLayer = document.getElementById('checkbox-layer');
         const loader = document.getElementById('loader');
         const loaderText = document.getElementById('loader-text');
@@ -687,6 +695,7 @@
             
             placeholderBox.classList.add('hidden');
             downloadBtn.classList.add('hidden');
+            postMaskActions.classList.add('hidden');
             
             try {
                 const img = new Image();
@@ -834,14 +843,63 @@
 
             // Wipe out interactive boxes on complete
             checkboxLayer.innerHTML = '';
-            
-            // Show download link
-            downloadBtn.classList.remove('hidden');
+
+            // Show download + re-select actions
+            postMaskActions.classList.remove('hidden');
             downloadBtn.href = mainCanvas.toDataURL('image/png', 1.0);
             downloadBtn.download = `face-emoji-masked-${Date.now()}.png`;
 
             // Scroll down on mobile to view result
-            downloadBtn.scrollIntoView({ behavior: 'smooth' });
+            postMaskActions.scrollIntoView({ behavior: 'smooth' });
+        };
+
+        // 7. Re-select faces — restore original image and re-render checkboxes
+        reSelectBtn.onclick = () => {
+            if (!originalImage || detectedFaces.length === 0) return;
+
+            // Restore the clean original image
+            ctx.drawImage(originalImage, 0, 0, mainCanvas.width, mainCanvas.height);
+
+            // Hide post-mask actions, keep processBtn enabled
+            postMaskActions.classList.add('hidden');
+
+            // Re-render all face selection boxes
+            checkboxLayer.innerHTML = '';
+            detectedFaces.forEach((face, index) => {
+                const { x, y, width, height } = face.box;
+                const selector = document.createElement('div');
+                selector.className = 'face-selector';
+
+                const pctLeft   = (x / mainCanvas.width)  * 100;
+                const pctTop    = (y / mainCanvas.height) * 100;
+                const pctWidth  = (width  / mainCanvas.width)  * 100;
+                const pctHeight = (height / mainCanvas.height) * 100;
+
+                selector.style.left   = `${pctLeft}%`;
+                selector.style.top    = `${pctTop}%`;
+                selector.style.width  = `${pctWidth}%`;
+                selector.style.height = `${pctHeight}%`;
+
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.checked = true;
+                cb.dataset.index = index;
+
+                cb.onclick = (e) => {
+                    e.stopPropagation();
+                    updateSelectorState(selector, cb.checked);
+                };
+                selector.onclick = () => {
+                    cb.checked = !cb.checked;
+                    updateSelectorState(selector, cb.checked);
+                };
+
+                selector.appendChild(cb);
+                checkboxLayer.appendChild(selector);
+            });
+
+            // Scroll back up to canvas on mobile
+            mainCanvas.scrollIntoView({ behavior: 'smooth' });
         };
     </script>
 </body>
