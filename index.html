@@ -199,6 +199,72 @@
                         </div>
                     </div>
 
+                    <!-- Step 3: Advanced Detection Settings -->
+                    <div class="space-y-3 pt-3 border-t border-slate-800">
+                        <label class="block text-sm font-semibold text-slate-200 flex items-center justify-between">
+                            <span class="flex items-center gap-2">
+                                <span class="flex items-center justify-center w-5 h-5 rounded-full bg-violet-500/20 text-violet-400 text-xs font-bold">3</span>
+                                偵測引擎配置
+                            </span>
+                            <button id="resetSettingsBtn" class="text-xs text-violet-400 hover:text-violet-300 transition">重設</button>
+                        </label>
+                        
+                        <!-- Model Core Selector -->
+                        <div class="space-y-1.5">
+                            <span class="text-xs text-slate-400">人臉辨識核心 (自動感應大小臉)</span>
+                            <div class="grid grid-cols-2 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-900">
+                                <button id="modelSSD" class="py-1.5 px-3 rounded-lg text-xs font-bold transition-all duration-300 bg-violet-600 text-white shadow-md" type="button" title="支援大臉、極小人臉、側臉，自動全尺度感應">🎯 專業深度 (SSD)</button>
+                                <button id="modelTiny" class="py-1.5 px-3 rounded-lg text-xs font-bold transition-all duration-300 text-slate-400 hover:text-slate-200 hover:bg-slate-900" type="button" title="極輕量 196KB 模型，適合特寫或一般大臉，速度最快">⚡ 輕量極速 (Tiny)</button>
+                            </div>
+                        </div>
+
+                        <!-- SSD Controls -->
+                        <div id="ssd-controls" class="space-y-1 pt-1">
+                            <div class="flex justify-between text-xs text-slate-400">
+                                <span>敏感度門檻 (Confidence)</span>
+                                <span id="ssd-threshold-val" class="font-medium text-violet-300">0.40</span>
+                            </div>
+                            <input type="range" id="ssdThresholdSlider" min="0.1" max="0.9" step="0.05" class="w-full h-1 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-violet-500" value="0.40" />
+                            <div class="flex justify-between text-[10px] text-slate-500 px-0.5">
+                                <span>高敏感 (0.1)</span>
+                                <span>高精準 (0.9)</span>
+                            </div>
+                        </div>
+
+                        <!-- Tiny Controls (Hidden by default) -->
+                        <div id="tiny-controls" class="hidden space-y-3 pt-1 border-t border-slate-900/50">
+                            <!-- Input Size Selector -->
+                            <div class="space-y-1">
+                                <div class="flex justify-between text-xs text-slate-400">
+                                    <span>偵測精細度 (解析度)</span>
+                                    <span id="input-size-val" class="font-medium text-violet-300">512 (平衡 - 預設)</span>
+                                </div>
+                                <input type="range" id="inputSizeSlider" min="0" max="5" step="1" class="w-full h-1 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-violet-500" value="3" />
+                                <div class="flex justify-between text-[10px] text-slate-500 px-0.5">
+                                    <span>160px</span>
+                                    <span>320px</span>
+                                    <span>416px</span>
+                                    <span>512px</span>
+                                    <span>608px</span>
+                                    <span>800px</span>
+                                </div>
+                            </div>
+
+                            <!-- Score Threshold Slider -->
+                            <div class="space-y-1">
+                                <div class="flex justify-between text-xs text-slate-400">
+                                    <span>敏感度門檻 (Confidence)</span>
+                                    <span id="threshold-val" class="font-medium text-violet-300">0.30</span>
+                                </div>
+                                <input type="range" id="thresholdSlider" min="0.1" max="0.9" step="0.05" class="w-full h-1 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-violet-500" value="0.30" />
+                                <div class="flex justify-between text-[10px] text-slate-500 px-0.5">
+                                    <span>高敏感 (0.1)</span>
+                                    <span>高精準 (0.9)</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Process Area -->
                     <div class="pt-4 border-t border-slate-800 space-y-3">
                         <div class="flex items-start gap-2 bg-violet-950/30 border border-violet-900/30 rounded-xl p-3 text-xs text-slate-400">
@@ -272,40 +338,77 @@
         let detectedFaces = [];
         let originalImage = null;
         let detectionEngine = 'None'; // 'Local', 'CDN', 'Error'
-        let faceapiModelLoaded = false;
+        let ssdModelLoaded = false;
+        let tinyModelLoaded = false;
+        let activeModel = 'SSD'; // 'SSD' or 'Tiny'
 
-        // 1. Dynamic Engine Initialization (Optimized for Local & GitHub Pages deployment)
+        // 1. Dynamic Engine Initialization (Loads highly accurate SSD Mobilenet by default)
         async function init() {
+            await loadModel('SSD');
+        }
+
+        async function loadModel(type) {
             const LOCAL_URL = './models';
             const CDN_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights';
             let loaded = false;
 
-            // Step A: Attempt to load from the local repository directory first (Fastest and works on Local Server + GitHub Pages)
-            if (window.location.protocol !== 'file:') {
-                updateEngineStatus('loading', '🤖 載入本地 AI 模型中...', '嘗試自專案模型路徑加載 (196KB)...', '🤖');
-                try {
-                    await faceapi.nets.tinyFaceDetector.loadFromUri(LOCAL_URL);
-                    faceapiModelLoaded = true;
-                    detectionEngine = 'Local';
-                    updateEngineStatus('ready', '🤖 本地 AI 模型已就緒', '本地模型加載成功 (支援離線與安全部署)', '🔒');
-                    loaded = true;
-                } catch (e) {
-                    console.warn("Failed to load local model. Attempting CDN fallback...", e);
+            if (type === 'SSD') {
+                if (ssdModelLoaded) return;
+                updateEngineStatus('loading', '🤖 載入 SSD 專業模型中...', '載入專業人臉模型 (5.4MB)...', '🤖');
+                
+                // Try Local
+                if (window.location.protocol !== 'file:') {
+                    try {
+                        await faceapi.nets.ssdMobilenetv1.loadFromUri(LOCAL_URL);
+                        ssdModelLoaded = true;
+                        detectionEngine = 'Local';
+                        updateEngineStatus('ready', '🎯 SSD 專業核心就緒', '自動適應大小臉與側臉偵測 (本地端)', '🔒');
+                        loaded = true;
+                    } catch (e) {
+                        console.warn("Failed to load local SSD model. Trying CDN...", e);
+                    }
                 }
-            }
-
-            // Step B: Automatically fall back to globally cached jsDelivr CDN (If open via file:// or if local files are missing)
-            if (!loaded) {
-                updateEngineStatus('loading', '🌐 載入雲端 AI 模型中...', '正在從高速全球 CDN 載入模型 (196KB)...', '🌐');
-                try {
-                    await faceapi.nets.tinyFaceDetector.loadFromUri(CDN_URL);
-                    faceapiModelLoaded = true;
-                    detectionEngine = 'CDN';
-                    updateEngineStatus('ready', '🌐 雲端 AI 模型已就緒', '雲端 CDN 模型加載成功 (自動調適)', '✅');
-                } catch (e) {
-                    console.error("All AI models failed to load entirely", e);
-                    detectionEngine = 'Error';
-                    updateEngineStatus('error', '❌ 模型載入失敗', '請確認網路連線。若使用本地開啟，請執行伺服器 (如 live-server)。', '❌');
+                
+                // Try CDN
+                if (!loaded) {
+                    try {
+                        await faceapi.nets.ssdMobilenetv1.loadFromUri(CDN_URL);
+                        ssdModelLoaded = true;
+                        detectionEngine = 'CDN';
+                        updateEngineStatus('ready', '🎯 SSD 專業核心就緒', '自動適應全尺度偵測 (高速 CDN)', '✅');
+                    } catch (e) {
+                        console.error("Failed to load SSD model", e);
+                        updateEngineStatus('error', '❌ 模型載入失敗', 'SSD 核心加載失敗，請重整網頁或檢查網路。', '❌');
+                    }
+                }
+            } else {
+                if (tinyModelLoaded) return;
+                updateEngineStatus('loading', '🤖 載入 Tiny 極速模型中...', '載入極速輕量模型 (196KB)...', '🤖');
+                
+                // Try Local
+                if (window.location.protocol !== 'file:') {
+                    try {
+                        await faceapi.nets.tinyFaceDetector.loadFromUri(LOCAL_URL);
+                        tinyModelLoaded = true;
+                        detectionEngine = 'Local';
+                        updateEngineStatus('ready', '⚡ Tiny 極速核心就緒', '輕量快速偵測已啟用 (本地端)', '🔒');
+                        loaded = true;
+                    } catch (e) {
+                        console.warn("Failed to load local Tiny model. Trying CDN...", e);
+                    }
+                }
+                
+                // Try CDN
+                if (!loaded) {
+                    try {
+                        await faceapi.nets.tinyFaceDetector.loadFromUri(CDN_URL);
+                        tinyModelLoaded = true;
+                        detectionEngine = 'CDN';
+                        updateEngineStatus('ready', '⚡ Tiny 極速核心就緒', '輕量快速偵測已啟用 (高速 CDN)', '✅');
+                    } catch (e) {
+                        console.error("Failed to load Tiny model", e);
+                        updateEngineStatus('error', '❌ 模型載入失敗', 'Tiny 核心加載失敗，請確認網路。', '❌');
+                    }
                 }
             }
         }
@@ -320,12 +423,10 @@
             if (state === 'loading') {
                 engineBadge.classList.add('bg-amber-500/5', 'border-amber-500/20', 'text-amber-400');
             } else if (state === 'ready') {
-                if (detectionEngine === 'Native') {
+                if (activeModel === 'SSD') {
                     engineBadge.classList.add('bg-emerald-500/10', 'border-emerald-500/30', 'text-emerald-400');
-                } else if (detectionEngine === 'Local') {
-                    engineBadge.classList.add('bg-blue-500/10', 'border-blue-500/30', 'text-blue-400');
                 } else {
-                    engineBadge.classList.add('bg-violet-500/10', 'border-violet-500/30', 'text-violet-400');
+                    engineBadge.classList.add('bg-blue-500/10', 'border-blue-500/30', 'text-blue-400');
                 }
             } else {
                 engineBadge.classList.add('bg-rose-500/10', 'border-rose-500/30', 'text-rose-400');
@@ -407,6 +508,151 @@
             if (file) handleImage(file);
         });
 
+        // 4.5 Slider and Model Core Controls
+        const modelSSDBtn = document.getElementById('modelSSD');
+        const modelTinyBtn = document.getElementById('modelTiny');
+        const ssdControls = document.getElementById('ssd-controls');
+        const tinyControls = document.getElementById('tiny-controls');
+        
+        const ssdThresholdSlider = document.getElementById('ssdThresholdSlider');
+        const ssdThresholdVal = document.getElementById('ssd-threshold-val');
+        
+        const inputSizeSlider = document.getElementById('inputSizeSlider');
+        const thresholdSlider = document.getElementById('thresholdSlider');
+        const inputSizeVal = document.getElementById('input-size-val');
+        const thresholdVal = document.getElementById('threshold-val');
+        const resetSettingsBtn = document.getElementById('resetSettingsBtn');
+
+        const inputSizes = [160, 320, 416, 512, 608, 800];
+        const inputSizeLabels = [
+            "160 (極速 / 僅大臉)",
+            "320 (速度優先)",
+            "416 (標準)",
+            "512 (平衡 - 預設)",
+            "608 (精細 - 適合小臉)",
+            "800 (高解析 - 極小人臉)"
+        ];
+
+        function getInputSize() {
+            return inputSizes[parseInt(inputSizeSlider.value)];
+        }
+
+        function getThreshold() {
+            return parseFloat(thresholdSlider.value);
+        }
+
+        // Toggle Models
+        modelSSDBtn.onclick = async () => {
+            if (activeModel === 'SSD') return;
+            activeModel = 'SSD';
+            modelSSDBtn.className = "py-1.5 px-3 rounded-lg text-xs font-bold transition-all duration-300 bg-violet-600 text-white shadow-md";
+            modelTinyBtn.className = "py-1.5 px-3 rounded-lg text-xs font-bold transition-all duration-300 text-slate-400 hover:text-slate-200 hover:bg-slate-900";
+            ssdControls.classList.remove('hidden');
+            tinyControls.classList.add('hidden');
+            
+            // Load and run
+            if (originalImage) {
+                await loadModel('SSD');
+                reDetect();
+            }
+        };
+
+        modelTinyBtn.onclick = async () => {
+            if (activeModel === 'Tiny') return;
+            activeModel = 'Tiny';
+            modelTinyBtn.className = "py-1.5 px-3 rounded-lg text-xs font-bold transition-all duration-300 bg-violet-600 text-white shadow-md";
+            modelSSDBtn.className = "py-1.5 px-3 rounded-lg text-xs font-bold transition-all duration-300 text-slate-400 hover:text-slate-200 hover:bg-slate-900";
+            ssdControls.classList.add('hidden');
+            tinyControls.classList.remove('hidden');
+            
+            // Load and run
+            if (originalImage) {
+                await loadModel('Tiny');
+                reDetect();
+            }
+        };
+
+        // Slider Updates
+        ssdThresholdSlider.oninput = () => {
+            ssdThresholdVal.innerText = parseFloat(ssdThresholdSlider.value).toFixed(2);
+        };
+        ssdThresholdSlider.onchange = () => {
+            if (originalImage) reDetect();
+        };
+
+        inputSizeSlider.oninput = () => {
+            inputSizeVal.innerText = inputSizeLabels[parseInt(inputSizeSlider.value)];
+        };
+        thresholdSlider.oninput = () => {
+            thresholdVal.innerText = getThreshold().toFixed(2);
+        };
+
+        inputSizeSlider.onchange = () => {
+            if (originalImage) reDetect();
+        };
+        thresholdSlider.onchange = () => {
+            if (originalImage) reDetect();
+        };
+
+        resetSettingsBtn.onclick = async () => {
+            if (activeModel === 'SSD') {
+                ssdThresholdSlider.value = 0.40;
+                ssdThresholdVal.innerText = "0.40";
+            } else {
+                inputSizeSlider.value = 3;
+                thresholdSlider.value = 0.30;
+                inputSizeVal.innerText = inputSizeLabels[3];
+                thresholdVal.innerText = "0.30";
+            }
+            if (originalImage) reDetect();
+        };
+
+        async function reDetect() {
+            if (!originalImage) return;
+            loaderText.innerText = "正在重新分析人臉...";
+            loaderSubtext.innerText = activeModel === 'SSD'
+                ? `引擎: SSD 專業核心 | 敏感度: ${parseFloat(ssdThresholdSlider.value).toFixed(2)}`
+                : `引擎: Tiny 極速核心 | 解析度: ${getInputSize()}px`;
+            loader.style.display = 'flex';
+            
+            try {
+                checkboxLayer.innerHTML = '';
+                detectedFaces = await detectFaces(mainCanvas);
+                
+                detectedFaces.forEach((face, index) => {
+                    const { x, y, width, height } = face.box;
+                    const selector = document.createElement('div');
+                    selector.className = 'face-selector';
+                    selector.style.left = `${x}px`;
+                    selector.style.top = `${y}px`;
+                    selector.style.width = `${width}px`;
+                    selector.style.height = `${height}px`;
+
+                    const cb = document.createElement('input');
+                    cb.type = 'checkbox';
+                    cb.checked = true;
+                    cb.dataset.index = index;
+                    
+                    cb.onclick = (e) => {
+                        e.stopPropagation();
+                        updateSelectorState(selector, cb.checked);
+                    };
+
+                    selector.onclick = () => {
+                        cb.checked = !cb.checked;
+                        updateSelectorState(selector, cb.checked);
+                    };
+
+                    selector.appendChild(cb);
+                    checkboxLayer.appendChild(selector);
+                });
+            } catch (e) {
+                console.error("Error during re-detection", e);
+            } finally {
+                loader.style.display = 'none';
+            }
+        }
+
         // 5. Image Loading and Face Detection Trigger
         async function handleImage(file) {
             if (!file) return;
@@ -423,9 +669,7 @@
 
             // Show loading
             loaderText.innerText = "正在分析圖片人臉中...";
-            loaderSubtext.innerText = detectionEngine === 'Local' 
-                ? "🔒 本地高效 AI 推論進行中 (離線安全)" 
-                : "🌐 雲端 CDN AI 加速推論進行中";
+            loaderSubtext.innerText = `正在啟用 ${activeModel === 'SSD' ? '🎯 SSD 專業深度' : '⚡ Tiny 輕量極速'} 引擎分析人臉...`;
             loader.style.display = 'flex';
             
             placeholderBox.classList.add('hidden');
@@ -507,17 +751,25 @@
 
         // Wrapper function to perform face detection (Optimized for maximum compatibility and accuracy)
         async function detectFaces(canvas) {
-            if (!faceapiModelLoaded) {
-                throw new Error("AI 模型未加載完成");
+            if (activeModel === 'SSD') {
+                if (!ssdModelLoaded) {
+                    await loadModel('SSD');
+                }
+                const minConfidence = parseFloat(ssdThresholdSlider.value);
+                return await faceapi.detectAllFaces(canvas, new faceapi.SsdMobilenetv1Options({
+                    minConfidence: minConfidence
+                }));
+            } else {
+                if (!tinyModelLoaded) {
+                    await loadModel('Tiny');
+                }
+                const size = getInputSize();
+                const threshold = getThreshold();
+                return await faceapi.detectAllFaces(canvas, new faceapi.TinyFaceDetectorOptions({
+                    inputSize: size,
+                    scoreThreshold: threshold
+                }));
             }
-            
-            // OPTIMIZATION: inputSize: 320, scoreThreshold: 0.3 strikes the perfect sweet spot:
-            // - 320 input size is extremely fast (takes only ~80-120ms) and detects smaller faces reliably.
-            // - 0.3 threshold ensures we catch rotated, dark, or partially obscured faces.
-            return await faceapi.detectAllFaces(canvas, new faceapi.TinyFaceDetectorOptions({
-                inputSize: 320,
-                scoreThreshold: 0.3
-            }));
         }
 
         // 6. Process Obscure Mask Image
